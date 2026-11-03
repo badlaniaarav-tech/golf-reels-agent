@@ -53,10 +53,10 @@ through it. If the env vars are missing, stop and report that the Drive secrets 
    and check: golfer fully in frame through the swing, impact inside the slow section, text readable and not
    covering the golfer, length 7 to 30 s, 1080x1920, audio present. Fail -> go back to step 3 once with the fix
    (usually `--cx`, `--impact` or `--pre/--post`). Still failing -> skip the clip and say why in the summary.
-5. **Publish** (use the `publisher` agent). Upload each passing reel to the Drive output folder, `share` it,
+5. **Publish** (use the `publisher` agent). Upload each passing reel to the Drive output folder, `share` it (this makes it viewable by anyone with the link, which Metricool needs),
    then create the Metricool post with the Metricool MCP tool `createScheduledPost`:
    `blogId 7518193`, `providers [{"network":"instagram"}]`, `instagramData {"type":"REEL","showReelOnFeed":true}`,
-   `media [<Drive webViewLink>]`, `publicationDate {dateTime, timezone:"America/New_York"}`,
+   `media [<downloadUrl printed by drive.py share, the drive.google.com/uc?export=download link>]`, `publicationDate {dateTime, timezone:"America/New_York"}`,
    `draft: true` when PUBLISH_MODE is `draft`, `draft: false` when `scheduled`. Pick the date with
    `getBestTimeToPostByNetwork` over the next 7 days (never in the past, never two reels within 20 hours).
    Caption style: one short punchy line, a golf detail if known, 5 to 8 hashtags, e.g.
