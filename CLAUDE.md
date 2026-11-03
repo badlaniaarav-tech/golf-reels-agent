@@ -54,8 +54,9 @@ First run `pip install -q -r requirements.txt` once per session (OpenCV is neede
      - Trim tight: `--pre 1.2` before a full swing, `--post 2.6` after (ball flight, a beat of reaction, no waiting).
        Putts: `--pre 1.3`, `--post 3.0` so the setup, the roll and the reaction are all seen. Check the putt
        stroke time by eye on the contact sheet; the audio detector often fires on the reaction, not the stroke.
-     - First clip carries `--banner "Aarav vs Harrison" --banner-secs <pre minus 0.15>`: it slides in from the left
-       behind the red bracket and slides back out just before the strike (with `--pre 1.2` use `--banner-secs 1.05`).
+     - First clip uses all the footage before the swing (`--pre` up to 2.5 s) so the names are readable and the
+       setup is seen. It carries `--banner "Aarav vs Harrison" --banner-secs <pre minus 0.15>`: it slides in from the left
+       behind the red bracket and slides back out just before the strike (with `--pre 1.8` use `--banner-secs 1.65`).
        Its stat cards come in right after the strike: `--stats-at <pre+0.3>-<clip end>`.
        Second clip carries `--hole "139 Yards | Par 3"` (types itself out). Never put both on the same clip.
      - Launch monitor numbers from the notes or a photo of the device go on each tee shot as small cards at the
