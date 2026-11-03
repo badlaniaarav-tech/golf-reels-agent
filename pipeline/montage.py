@@ -50,7 +50,7 @@ def main():
     for i, c in enumerate(clips):
         n = os.path.join(tmp, f"n{i}.mp4")
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", c, "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo",
-                        "-filter_complex", "[0:a]aformat=sample_rates=48000:channel_layouts=stereo[a0];[a0][1:a]amix=inputs=2:duration=first[a]"
+                        "-filter_complex", "[0:a]aformat=sample_rates=48000:channel_layouts=stereo,apad[a]"
                         if has_audio(c) else "[1:a]anull[a]",
                         "-map", "0:v", "-map", "[a]", "-vf", "scale=1080:1920,fps=30,format=yuv420p",
                         "-c:v", "libx264", "-crf", "20", "-c:a", "aac", "-ar", "48000", "-shortest", n], check=True)
@@ -88,6 +88,9 @@ def main():
             amap = "[aout]"
         else:
             amap = "[mus]"
+    # Instagram-level loudness so quiet phone audio (the strike, the chatter) is clearly heard
+    f.append(f"{amap}loudnorm=I=-14:TP=-1.5:LRA=11[afinal]")
+    amap = "[afinal]"
     cmd = ["ffmpeg", "-v", "error", "-y"] + inputs + ["-filter_complex", ";".join(f), "-map", "[v]", "-map", amap,
            "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-c:a", "aac", "-b:a", "160k",
            "-movflags", "+faststart", "-shortest", a.out]

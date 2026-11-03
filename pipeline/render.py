@@ -28,6 +28,7 @@ FONT_HEAVY = pick_font("/usr/share/fonts/**/InterDisplay-Black.otf", "/usr/share
                        "/usr/share/fonts/**/Inter*ExtraBold.*", fallback=FONT)
 HERE = os.path.dirname(os.path.abspath(__file__))
 FONT_ROUND = pick_font(os.path.join(HERE, "..", "assets", "fonts", "Nunito*.ttf"), fallback=None)
+FONT_BANNER = pick_font("/usr/share/fonts/**/Inter-Bold.otf", "/usr/share/fonts/**/Inter*Bold.ttf", fallback=FONT)
 FONT_ITALIC = pick_font("/usr/share/fonts/**/Inter*BoldItalic.otf", "/usr/share/fonts/**/Inter*BoldItalic.ttf",
                         fallback="/usr/share/fonts/truetype/dejavu/DejaVuSans-BoldOblique.ttf")
 W, H = 1080, 1920
@@ -121,13 +122,13 @@ def match_overlays(a, tmp, out_len):
         D = 0.5  # slide-in seconds, ease-out cubic
         x_final = 64
         x_expr = f"if(lt(t,{D}),{x_final}-({x_final}+tw+40)*pow(1-t/{D},3),{x_final})"
-        f.append(drawtext(a.banner.upper(), "h*0.165+14", 68, tmp, "banner.txt", x_expr=x_expr,
-                          font=FONT_HEAVY, color="black", extra="box=1:boxcolor=white:boxborderw=16",
+        f.append(drawtext(a.banner.upper(), "h*0.165+14", 64, tmp, "banner.txt", x_expr=x_expr,
+                          font=FONT_BANNER, color="black", extra="box=1:boxcolor=white:boxborderw=16",
                           enable=f"lt(t,{banner_end})"))
         # red "[" bracket anchored at the left of the banner, drawn on top so the banner slides in behind it.
         # Its height matches the white box exactly: text ink height + 2 * boxborderw (measured with the same font).
         from PIL import ImageFont
-        bb = ImageFont.truetype(FONT_HEAVY, 68).getbbox(a.banner.upper())
+        bb = ImageFont.truetype(FONT_BANNER, 64).getbbox(a.banner.upper())
         hb = (bb[3] - bb[1]) + 2 * 16
         y0 = "ih*0.165+14-16"                               # top of the white box
         for box in (f"x=34:y={y0}:w=14:h={hb}", f"x=34:y={y0}:w=44:h=12", f"x=34:y={y0}+{hb}-12:w=44:h=12"):
