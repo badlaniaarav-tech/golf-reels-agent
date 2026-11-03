@@ -25,9 +25,20 @@ def pick_font(*patterns, fallback="/usr/share/fonts/truetype/dejavu/DejaVuSans-B
 FONT = pick_font("/usr/share/fonts/**/Inter*Bold.otf", "/usr/share/fonts/**/Inter*Bold.ttf")
 FONT_HEAVY = pick_font("/usr/share/fonts/**/InterDisplay-Black.otf", "/usr/share/fonts/**/Inter*Black.*",
                        "/usr/share/fonts/**/Inter*ExtraBold.*", fallback=FONT)
+HERE = os.path.dirname(os.path.abspath(__file__))
+FONT_ROUND = pick_font(os.path.join(HERE, "..", "assets", "fonts", "Nunito*.ttf"), fallback=None)
 FONT_ITALIC = pick_font("/usr/share/fonts/**/Inter*BoldItalic.otf", "/usr/share/fonts/**/Inter*BoldItalic.ttf",
                         fallback="/usr/share/fonts/truetype/dejavu/DejaVuSans-BoldOblique.ttf")
 W, H = 1080, 1920
+
+
+def text_width(text, font, size):
+    """Pixel width of text as ffmpeg's drawtext will render it (same freetype face)."""
+    try:
+        from PIL import ImageFont
+        return ImageFont.truetype(font, size).getlength(text)
+    except Exception:
+        return len(text) * size * 0.6
 
 
 def probe(path):
@@ -67,29 +78,44 @@ def drawtext(text, y_expr, size, tmpdir, name, x_expr="(w-text_w)/2", font=None,
     with open(p, "w") as f:
         f.write(text)
     s = (f"drawtext=fontfile={font or FONT}:textfile={p}:fontsize={size}:fontcolor={color}:"
-         f"{extra}:x={x_expr}:y={y_expr}")
+         f"{extra}:x='{x_expr}':y='{y_expr}'")
     if enable:
         s += f":enable='{enable}'"
     return s
 
 
 def match_overlays(a, tmp, out_len):
-    """Overlays in the 1v1 match style: banner, hole info, situation label, dialogue captions."""
+    """Overlays in the 1v1 match style, animated like the reference reels:
+    banner slides in from the left behind a red bracket; hole info types itself out with a soft fade;
+    the situation label is static; dialogue captions slide in from the right."""
     f = []
     banner_end = a.banner_secs if a.banner else 0
     if a.banner:
-        # white box, heavy black uppercase text, red accent bar on the left, top of frame
-        f.append(f"drawbox=x=36:y=ih*0.165:w=16:h=118:color=#e0262c:t=fill:enable='lt(t,{banner_end})'")
-        f.append(drawtext(a.banner.upper(), "h*0.165+14", 68, tmp, "banner.txt", x_expr="64",
+        D = 0.5  # slide-in seconds, ease-out cubic
+        x_final = 64
+        x_expr = f"if(lt(t,{D}),{x_final}-({x_final}+tw+40)*pow(1-t/{D},3),{x_final})"
+        f.append(drawtext(a.banner.upper(), "h*0.165+14", 68, tmp, "banner.txt", x_expr=x_expr,
                           font=FONT_HEAVY, color="black", extra="box=1:boxcolor=white:boxborderw=16",
                           enable=f"lt(t,{banner_end})"))
+        # red "[" bracket anchored at the left of the banner, drawn on top so the banner slides in behind it
+        y0, hb = "ih*0.165-2", 118
+        for box in (f"x=34:y={y0}:w=14:h={hb}", f"x=34:y={y0}:w=44:h=12", f"x=34:y={y0}+{hb}-12:w=44:h=12"):
+            f.append(f"drawbox={box}:color=#e0262c:t=fill:enable='between(t,0.08,{banner_end})'")
     if a.hole:
-        f.append(drawtext(a.hole, "h*0.17", 62, tmp, "hole.txt", extra="shadowx=3:shadowy=3:shadowcolor=black@0.6",
-                          enable=f"gte(t,{banner_end})"))
+        # typewriter: one drawtext layer per prefix, each fading in; identical glyphs overlap exactly
+        font, size, step, fade = (FONT_ROUND or FONT), 62, 0.06, 0.18
+        x0 = int((W - text_width(a.hole, font, size)) / 2)
+        # y is set from a fixed baseline so every prefix layer lands on exactly the same pixels
+        y_expr = f"h*0.17+{int(size * 0.95)}-ascent"
+        for i in range(1, len(a.hole) + 1):
+            ts = banner_end + (i - 1) * step
+            f.append(drawtext(a.hole[:i], y_expr, size, tmp, f"hole{i}.txt", x_expr=str(x0), font=font,
+                              extra=f"shadowx=3:shadowy=3:shadowcolor=black@0.5:alpha='min(1,(t-{ts:.3f})/{fade})'",
+                              enable=f"gte(t,{ts:.3f})"))
     if a.label:
         x = "w*0.72" if a.label_side == "right" else "w*0.07"
-        f.append(drawtext(a.label, "h*0.58", 50, tmp, "label.txt", x_expr=x,
-                          extra="shadowx=3:shadowy=3:shadowcolor=black@0.6"))
+        f.append(drawtext(a.label, "h*0.58", 52, tmp, "label.txt", x_expr=x, font=(FONT_ROUND or FONT),
+                          extra="shadowx=3:shadowy=3:shadowcolor=black@0.5"))
     for i, d in enumerate(a.dialogue or []):
         # "text@start-end" (seconds in the OUTPUT clip); "text" alone shows for the last 2.5 s
         if "@" in d:
@@ -97,8 +123,11 @@ def match_overlays(a, tmp, out_len):
             t0, t1 = (float(x) for x in span.split("-"))
         else:
             text, t0, t1 = d, max(0, out_len - 2.5), out_len
-        f.append(drawtext(text, "h*0.84", 50, tmp, f"dlg{i}.txt", font=FONT_ITALIC, color="#ffd21f",
-                          extra="borderw=3:bordercolor=black@0.85", enable=f"between(t,{t0:.2f},{t1:.2f})"))
+        D = 0.25  # slide in from the right
+        x_expr = f"if(lt(t-{t0:.2f},{D}),(w-tw)/2+(w/2)*pow(1-(t-{t0:.2f})/{D},3),(w-tw)/2)"
+        f.append(drawtext(text, "h*0.84", 52, tmp, f"dlg{i}.txt", x_expr=x_expr, font=FONT_ITALIC,
+                          color="#ffd21f", extra="borderw=3:bordercolor=black@0.85",
+                          enable=f"between(t,{t0:.2f},{t1:.2f})"))
     return f
 
 
