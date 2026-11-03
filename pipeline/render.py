@@ -43,10 +43,13 @@ def text_width(text, font, size):
 
 def probe(path):
     out = subprocess.run(["ffprobe", "-v", "error", "-show_entries",
-                          "stream=codec_type,width,height,r_frame_rate:format=duration",
+                          "stream=codec_type,width,height,r_frame_rate:stream_side_data=rotation:format=duration",
                           "-of", "json", path], check=True, capture_output=True).stdout
     info = json.loads(out)
     v = next(s for s in info["streams"] if s["codec_type"] == "video")
+    rot = abs(int(float((v.get("side_data_list") or [{}])[0].get("rotation", 0)))) % 180
+    if rot == 90:
+        v["width"], v["height"] = v["height"], v["width"]
     num, den = v["r_frame_rate"].split("/")
     return dict(duration=float(info["format"]["duration"]), width=int(v["width"]),
                 height=int(v["height"]), fps=float(num) / float(den or 1),
@@ -82,6 +85,29 @@ def drawtext(text, y_expr, size, tmpdir, name, x_expr="(w-text_w)/2", font=None,
     if enable:
         s += f":enable='{enable}'"
     return s
+
+
+def stat_cards_png(stats, path):
+    """stats: list of (LABEL, value, unit). Draws a row of up to 3 rounded translucent cards (1080 wide)."""
+    from PIL import Image, ImageDraw, ImageFont
+    n = len(stats)
+    cw, ch, gap, margin = (300 if n == 3 else 340), 300, 32, 0
+    total = n * cw + (n - 1) * gap
+    img = Image.new("RGBA", (W, ch), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    f_label = ImageFont.truetype(FONT, 30)
+    f_value = ImageFont.truetype(FONT_HEAVY, 110)
+    f_unit = ImageFont.truetype(FONT_ITALIC, 34)
+    x = (W - total) // 2
+    for label, value, unit in stats:
+        d.rounded_rectangle((x, 0, x + cw, ch), radius=38, fill=(16, 20, 28, 175))
+        cx = x + cw / 2
+        d.text((cx, 62), label.upper(), font=f_label, fill="white", anchor="mm")
+        d.text((cx, 152), str(value), font=f_value, fill="white", anchor="mm")
+        d.text((cx, 246), unit, font=f_unit, fill=(230, 230, 230, 255), anchor="mm")
+        x += cw + gap
+    img.save(path)
+    return path
 
 
 def match_overlays(a, tmp, out_len):
@@ -156,6 +182,8 @@ def main():
     g.add_argument("--label", help='situation label, e.g. "For Birdie", "To Tie"')
     g.add_argument("--label-side", choices=["left", "right"], default="right")
     g.add_argument("--dialogue", action="append", help='yellow caption: "text@start-end" (output seconds), repeatable')
+    g.add_argument("--stats", help='launch monitor cards, e.g. "Carry=136=yds,Spin=9439=rpm,Pull=1.0°=left" (max 3)')
+    g.add_argument("--stats-at", default=None, help='"start-end" in output seconds; default: impact+0.6 to end')
     a = ap.parse_args()
 
     m = probe(a.input)
@@ -187,7 +215,21 @@ def main():
     post += match_overlays(a, tmp, out_len)
     if not a.no_fade:
         post.append(f"fade=t=in:d=0.25,fade=t=out:st={max(0, out_len - 0.4):.2f}:d=0.4")
-    f.append("[vc]" + ",".join(post) + "[vout]")
+    stats_input = []
+    if a.stats:
+        stats = [tuple(x.strip() for x in item.split("=")) for item in a.stats.split(",")][:3]
+        png = stat_cards_png(stats, os.path.join(tmp, "stats.png"))
+        if a.stats_at:
+            s0, s1 = (float(x) for x in a.stats_at.split("-"))
+        else:
+            s0, s1 = (A - S) + (a.slow_before if use_slow else 0) + 0.6, out_len
+        s0, s1 = max(0.0, s0), min(out_len, s1)
+        stats_input = ["-loop", "1", "-i", png]
+        f.append("[vc]" + ",".join(post) + "[vtxt]")
+        f.append(f"[{{STATS}}:v]format=rgba,fade=t=in:st={s0:.2f}:d=0.3:alpha=1,setpts=PTS-STARTPTS[cards]")
+        f.append(f"[vtxt][cards]overlay=x=0:y=H*0.24:enable='between(t,{s0:.2f},{s1:.2f})':eof_action=pass[vout]")
+    else:
+        f.append("[vc]" + ",".join(post) + "[vout]")
 
     audio_label = None
     if m["has_audio"] and not a.mute:
@@ -201,9 +243,13 @@ def main():
         f.append("".join(al) + f"concat=n={len(segs)}:v=0:a=1[ac]")
         audio_label = "[ac]"
     inputs = ["-i", a.input]
+    if stats_input:
+        inputs += stats_input
+        f = [x.replace("{STATS}", "1") for x in f]
+    music_idx = 2 if stats_input else 1
     if a.music:
         inputs += ["-stream_loop", "-1", "-i", a.music]
-        f.append(f"[1:a]atrim=0:{out_len:.3f},asetpts=PTS-STARTPTS,volume={a.music_vol}[mus]")
+        f.append(f"[{music_idx}:a]atrim=0:{out_len:.3f},asetpts=PTS-STARTPTS,volume={a.music_vol}[mus]")
         if audio_label:
             f.append(f"{audio_label}[mus]amix=inputs=2:duration=first:dropout_transition=0,"
                      f"afade=t=out:st={max(0, out_len - 0.6):.2f}:d=0.6[aout]")

@@ -25,11 +25,14 @@ def run(cmd, **kw):
 
 def probe(path):
     out = run(["ffprobe", "-v", "error", "-show_entries",
-               "stream=codec_type,width,height,r_frame_rate:format=duration",
+               "stream=codec_type,width,height,r_frame_rate:stream_side_data=rotation:format=duration",
                "-of", "json", path])
     info = json.loads(out)
     v = next(s for s in info["streams"] if s["codec_type"] == "video")
     has_audio = any(s["codec_type"] == "audio" for s in info["streams"])
+    rot = abs(int(float((v.get("side_data_list") or [{}])[0].get("rotation", 0)))) % 180
+    if rot == 90:
+        v["width"], v["height"] = v["height"], v["width"]
     num, den = v["r_frame_rate"].split("/")
     fps = float(num) / float(den or 1)
     return dict(duration=float(info["format"]["duration"]), width=int(v["width"]),
@@ -38,7 +41,7 @@ def probe(path):
 
 def audio_envelope(path):
     """RMS energy per 10 ms window."""
-    raw = run(["ffmpeg", "-v", "error", "-i", path, "-vn", "-ac", "1", "-ar", str(AUDIO_SR),
+    raw = run(["ffmpeg", "-v", "error", "-i", path, "-map", "0:a:0", "-vn", "-ac", "1", "-ar", str(AUDIO_SR),
                "-f", "s16le", "-"])
     pcm = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
     hop = int(AUDIO_SR * HOP)

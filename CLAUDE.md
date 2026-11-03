@@ -54,6 +54,9 @@ through it. If the env vars are missing, stop and report that the Drive secrets 
        then `--hole "431 Yards | Par 4"` takes its place when the yardage/par is known from the notes.
      - Each shot gets a situation `--label` beside the player, on the side with open space:
        "For Birdie", "For Par", "To Tie", "To Win", "For Eagle". Work it out from the running score in the notes.
+     - Launch monitor numbers from the notes or a photo of the device go on the tee shot as cards:
+       `--stats "Carry=136=yds,Spin=9439=rpm,Pull=1.0°=left"` (label=value=unit, up to 3). They appear 0.6 s after
+       impact while the ball is in the air.
      - Spoken reactions become yellow italic `--dialogue "text@start-end"` captions when the notes give them
        (there is no automatic transcription). Keep them 2 to 5 words.
      - Keep the natural audio (talking, strike). Music is a quiet bed only if a track is provided.
