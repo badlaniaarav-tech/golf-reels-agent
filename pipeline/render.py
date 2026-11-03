@@ -117,12 +117,17 @@ def match_overlays(a, tmp, out_len):
     banner slides in from the left behind a red bracket; hole info types itself out with a soft fade;
     the situation label is static; dialogue captions slide in from the right."""
     f = []
-    banner_end = a.banner_secs if a.banner else 0
+    banner_end = min(a.banner_secs, out_len) if a.banner else 0
     if a.banner:
         D = 0.5  # slide-in seconds, ease-out cubic
         size, pad, box_left = 66, 26, 76                   # roomy white box like the reference
         x_final = box_left + pad
-        x_expr = f"if(lt(t,{D}),{x_final}-({x_final}+tw+80)*pow(1-t/{D},3),{x_final})"
+        x_in = f"{x_final}-({x_final}+tw+80)*pow(1-t/{D},3)"
+        x_expr = f"if(lt(t,{D}),{x_in},{x_final})"
+        if banner_end < out_len - 0.05:                     # slide back out to the left before it ends
+            Do, t_out = 0.3, banner_end - 0.3
+            x_out = f"{x_final}-({x_final}+tw+80)*pow((t-{t_out:.3f})/{Do},3)"
+            x_expr = f"if(lt(t,{D}),{x_in},if(gt(t,{t_out:.3f}),{x_out},{x_final}))"
         f.append(drawtext(a.banner.upper(), f"h*0.165+{pad}", size, tmp, "banner.txt", x_expr=x_expr,
                           font=FONT_BANNER, color="black", extra=f"box=1:boxcolor=white:boxborderw={pad}",
                           enable=f"lt(t,{banner_end})"))
