@@ -11,7 +11,22 @@ centred on cx (0 = left edge, 1 = right edge), with optional text and music.
 """
 import argparse, json, os, subprocess, tempfile
 
-FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+import glob
+
+
+def pick_font(*patterns, fallback="/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"):
+    for pat in patterns:
+        hits = sorted(glob.glob(pat, recursive=True))
+        if hits:
+            return hits[0]
+    return fallback
+
+
+FONT = pick_font("/usr/share/fonts/**/Inter*Bold.otf", "/usr/share/fonts/**/Inter*Bold.ttf")
+FONT_HEAVY = pick_font("/usr/share/fonts/**/InterDisplay-Black.otf", "/usr/share/fonts/**/Inter*Black.*",
+                       "/usr/share/fonts/**/Inter*ExtraBold.*", fallback=FONT)
+FONT_ITALIC = pick_font("/usr/share/fonts/**/Inter*BoldItalic.otf", "/usr/share/fonts/**/Inter*BoldItalic.ttf",
+                        fallback="/usr/share/fonts/truetype/dejavu/DejaVuSans-BoldOblique.ttf")
 W, H = 1080, 1920
 
 
@@ -46,12 +61,45 @@ def atempo_chain(factor):
     return ",".join(parts)
 
 
-def drawtext(text, y_expr, size, tmpdir, name):
+def drawtext(text, y_expr, size, tmpdir, name, x_expr="(w-text_w)/2", font=None, color="white",
+             extra="borderw=4:bordercolor=black@0.7", enable=None):
     p = os.path.join(tmpdir, name)
     with open(p, "w") as f:
         f.write(text)
-    return (f"drawtext=fontfile={FONT}:textfile={p}:fontsize={size}:fontcolor=white:"
-            f"borderw=4:bordercolor=black@0.7:x=(w-text_w)/2:y={y_expr}")
+    s = (f"drawtext=fontfile={font or FONT}:textfile={p}:fontsize={size}:fontcolor={color}:"
+         f"{extra}:x={x_expr}:y={y_expr}")
+    if enable:
+        s += f":enable='{enable}'"
+    return s
+
+
+def match_overlays(a, tmp, out_len):
+    """Overlays in the 1v1 match style: banner, hole info, situation label, dialogue captions."""
+    f = []
+    banner_end = a.banner_secs if a.banner else 0
+    if a.banner:
+        # white box, heavy black uppercase text, red accent bar on the left, top of frame
+        f.append(f"drawbox=x=36:y=ih*0.165:w=16:h=118:color=#e0262c:t=fill:enable='lt(t,{banner_end})'")
+        f.append(drawtext(a.banner.upper(), "h*0.165+14", 68, tmp, "banner.txt", x_expr="64",
+                          font=FONT_HEAVY, color="black", extra="box=1:boxcolor=white:boxborderw=16",
+                          enable=f"lt(t,{banner_end})"))
+    if a.hole:
+        f.append(drawtext(a.hole, "h*0.17", 62, tmp, "hole.txt", extra="shadowx=3:shadowy=3:shadowcolor=black@0.6",
+                          enable=f"gte(t,{banner_end})"))
+    if a.label:
+        x = "w*0.72" if a.label_side == "right" else "w*0.07"
+        f.append(drawtext(a.label, "h*0.58", 50, tmp, "label.txt", x_expr=x,
+                          extra="shadowx=3:shadowy=3:shadowcolor=black@0.6"))
+    for i, d in enumerate(a.dialogue or []):
+        # "text@start-end" (seconds in the OUTPUT clip); "text" alone shows for the last 2.5 s
+        if "@" in d:
+            text, span = d.rsplit("@", 1)
+            t0, t1 = (float(x) for x in span.split("-"))
+        else:
+            text, t0, t1 = d, max(0, out_len - 2.5), out_len
+        f.append(drawtext(text, "h*0.84", 50, tmp, f"dlg{i}.txt", font=FONT_ITALIC, color="#ffd21f",
+                          extra="borderw=3:bordercolor=black@0.85", enable=f"between(t,{t0:.2f},{t1:.2f})"))
+    return f
 
 
 def main():
@@ -72,6 +120,13 @@ def main():
     ap.add_argument("--music-vol", type=float, default=0.5)
     ap.add_argument("--mute", action="store_true", help="drop the original audio")
     ap.add_argument("--no-fade", action="store_true")
+    g = ap.add_argument_group("match style overlays (1v1 reels)")
+    g.add_argument("--banner", help='matchup banner, e.g. "Aarav vs Luke" (shown for --banner-secs)')
+    g.add_argument("--banner-secs", type=float, default=4.0)
+    g.add_argument("--hole", help='hole info, e.g. "431 Yards | Par 4"')
+    g.add_argument("--label", help='situation label, e.g. "For Birdie", "To Tie"')
+    g.add_argument("--label-side", choices=["left", "right"], default="right")
+    g.add_argument("--dialogue", action="append", help='yellow caption: "text@start-end" (output seconds), repeatable')
     a = ap.parse_args()
 
     m = probe(a.input)
@@ -100,6 +155,7 @@ def main():
         post.append(drawtext(a.title, "h*0.10", 72, tmp, "title.txt"))
     if a.caption:
         post.append(drawtext(a.caption, "h*0.80", 56, tmp, "caption.txt"))
+    post += match_overlays(a, tmp, out_len)
     if not a.no_fade:
         post.append(f"fade=t=in:d=0.25,fade=t=out:st={max(0, out_len - 0.4):.2f}:d=0.4")
     f.append("[vc]" + ",".join(post) + "[vout]")

@@ -45,9 +45,19 @@ through it. If the env vars are missing, stop and report that the Drive secrets 
    - **Highlight montage** (several shots from a session/round): render each shot with `--pre 1.8 --post 2.5`,
      then `montage.py` with `--intro` (e.g. "Sunday at Pine Hills") and music if available (`--keep-audio`).
      Target 15 to 30 s total. Best shot goes first, second best last.
-   - **1 v 1 / match play** (filename contains `1v1`, `vs`, `match`): per shot `--title "Hole 3"` and
-     `--caption "Aarav 4 - Luke 5"` style running score taken from the filename or a `notes.txt` in the inbox;
-     montage with `--intro "Aarav vs Luke"`. Alternate players when the footage allows.
+   - **1 v 1 / match play** (filename contains `1v1`, `vs`, `match`, or the notes say so). Reference look: the
+     japesgolf "JP vs Chance Taylor" reels. Rules:
+     - Real time, no slow motion (`--slow 1`), hard cuts, no intro card, no crossfades (`montage.py --xfade 0`).
+       One hole per reel, 10 to 20 s: tee shot, approach, putt(s). Trim tight: `--pre 1.5 --post 2.5` for full
+       swings, `--pre 1 --post 3` for putts so the ball reaching the hole is seen.
+     - First shot carries `--banner "Aarav vs Luke"` (white box, black heavy uppercase, red bar) for 4 s,
+       then `--hole "431 Yards | Par 4"` takes its place when the yardage/par is known from the notes.
+     - Each shot gets a situation `--label` beside the player, on the side with open space:
+       "For Birdie", "For Par", "To Tie", "To Win", "For Eagle". Work it out from the running score in the notes.
+     - Spoken reactions become yellow italic `--dialogue "text@start-end"` captions when the notes give them
+       (there is no automatic transcription). Keep them 2 to 5 words.
+     - Keep the natural audio (talking, strike). Music is a quiet bed only if a track is provided.
+     - Shot tracer lines are not produced by this pipeline.
    Output goes to `work/out/<YYYY-MM-DD>_<type>_<n>.mp4`.
 4. **Review** (use the `reviewer` agent). For each output, extract 6 frames (`ffmpeg -i out.mp4 -vf fps=1/2,scale=270:-2,tile=6x1 -frames:v 1 check.jpg`)
    and check: golfer fully in frame through the swing, impact inside the slow section, text readable and not
@@ -68,7 +78,7 @@ through it. If the env vars are missing, stop and report that the Drive secrets 
 ## Style rules
 
 - Vertical 1080x1920, 30 fps, no letterboxing, golfer centred, horizon level (do not rotate).
-- Slow motion only around impact; never slow the whole clip. One slow section per shot.
+- Slow motion only around impact; never slow the whole clip. One slow section per shot. Match reels use no slow motion.
 - Text: white, bold, outlined, top 10 percent for titles, bottom 20 percent for captions. Max 4 words per line.
 - No watermarks, no emojis in overlays, no AI-generated visuals. Mark `isAiGenerated: false`.
 - Keep the strike sound audible. Music is a bed, not the lead, unless the source has no audio.

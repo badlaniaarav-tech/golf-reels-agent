@@ -63,6 +63,10 @@ def main():
     if len(norm) == 1:
         f.append("[0:v]null[v];[0:a]anull[a]")
         total = durs[0]
+    elif d <= 0:
+        # hard cuts: plain concat
+        f.append("".join(f"[{i}:v][{i}:a]" for i in range(len(norm))) + f"concat=n={len(norm)}:v=1:a=1[v][a]")
+        total = sum(durs)
     else:
         off = 0.0
         vprev, aprev = "[0:v]", "[0:a]"
