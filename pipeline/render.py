@@ -120,18 +120,21 @@ def match_overlays(a, tmp, out_len):
     banner_end = a.banner_secs if a.banner else 0
     if a.banner:
         D = 0.5  # slide-in seconds, ease-out cubic
-        x_final = 64
-        x_expr = f"if(lt(t,{D}),{x_final}-({x_final}+tw+40)*pow(1-t/{D},3),{x_final})"
-        f.append(drawtext(a.banner.upper(), "h*0.165+14", 64, tmp, "banner.txt", x_expr=x_expr,
-                          font=FONT_BANNER, color="black", extra="box=1:boxcolor=white:boxborderw=16",
+        size, pad, box_left = 66, 26, 76                   # roomy white box like the reference
+        x_final = box_left + pad
+        x_expr = f"if(lt(t,{D}),{x_final}-({x_final}+tw+80)*pow(1-t/{D},3),{x_final})"
+        f.append(drawtext(a.banner.upper(), f"h*0.165+{pad}", size, tmp, "banner.txt", x_expr=x_expr,
+                          font=FONT_BANNER, color="black", extra=f"box=1:boxcolor=white:boxborderw={pad}",
                           enable=f"lt(t,{banner_end})"))
-        # red "[" bracket anchored at the left of the banner, drawn on top so the banner slides in behind it.
-        # Its height matches the white box exactly: text ink height + 2 * boxborderw (measured with the same font).
+        # red "[" bracket on top of the box's left edge, a little taller than the box, like the reference
         from PIL import ImageFont
-        bb = ImageFont.truetype(FONT_BANNER, 64).getbbox(a.banner.upper())
-        hb = (bb[3] - bb[1]) + 2 * 16
-        y0 = "ih*0.165+14-16"                               # top of the white box
-        for box in (f"x=34:y={y0}:w=14:h={hb}", f"x=34:y={y0}:w=44:h=12", f"x=34:y={y0}+{hb}-12:w=44:h=12"):
+        bb = ImageFont.truetype(FONT_BANNER, size).getbbox(a.banner.upper())
+        box_h = (bb[3] - bb[1]) + 2 * pad
+        over, bar, arm, thick = 20, 20, 72, 16
+        y0, hb = f"ih*0.165-{over}", box_h + 2 * over
+        bx = box_left - 16
+        for box in (f"x={bx}:y={y0}:w={bar}:h={hb}", f"x={bx}:y={y0}:w={arm}:h={thick}",
+                    f"x={bx}:y={y0}+{hb}-{thick}:w={arm}:h={thick}"):
             f.append(f"drawbox={box}:color=#e0262c:t=fill:enable='between(t,0.08,{banner_end})'")
     if a.hole:
         # typewriter: one drawtext layer per prefix, each fading in; identical glyphs overlap exactly

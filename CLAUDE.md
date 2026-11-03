@@ -51,8 +51,8 @@ First run `pip install -q -r requirements.txt` once per session (OpenCV is neede
      japesgolf "JP vs Chance Taylor" reels. Rules:
      - Real time, no slow motion (`--slow 1`), no fades (`--no-fade` on every clip), hard cuts
        (`montage.py --xfade 0`), no intro card. One hole per reel, 15 to 25 s: both tee shots, approaches, putts.
-     - Trim tight: `--pre 1.2` before a full swing, `--post 3.2` after (ball flight and reaction).
-       Putts: `--pre 1.3`, `--post 3.5` so the setup, the roll and the reaction are all seen. Check the putt
+     - Trim tight: `--pre 1.2` before a full swing, `--post 2.6` after (ball flight, a beat of reaction, no waiting).
+       Putts: `--pre 1.3`, `--post 3.0` so the setup, the roll and the reaction are all seen. Check the putt
        stroke time by eye on the contact sheet; the audio detector often fires on the reaction, not the stroke.
      - First clip carries `--banner "Aarav vs Harrison" --banner-secs 99` (slides in from the left behind the red
        bracket and stays for the whole clip). Second clip carries `--hole "139 Yards | Par 3"` (types itself out).
