@@ -124,8 +124,12 @@ def match_overlays(a, tmp, out_len):
         f.append(drawtext(a.banner.upper(), "h*0.165+14", 68, tmp, "banner.txt", x_expr=x_expr,
                           font=FONT_HEAVY, color="black", extra="box=1:boxcolor=white:boxborderw=16",
                           enable=f"lt(t,{banner_end})"))
-        # red "[" bracket anchored at the left of the banner, drawn on top so the banner slides in behind it
-        y0, hb = "ih*0.165-2", 118
+        # red "[" bracket anchored at the left of the banner, drawn on top so the banner slides in behind it.
+        # Its height matches the white box exactly: text ink height + 2 * boxborderw (measured with the same font).
+        from PIL import ImageFont
+        bb = ImageFont.truetype(FONT_HEAVY, 68).getbbox(a.banner.upper())
+        hb = (bb[3] - bb[1]) + 2 * 16
+        y0 = "ih*0.165+14-16"                               # top of the white box
         for box in (f"x=34:y={y0}:w=14:h={hb}", f"x=34:y={y0}:w=44:h=12", f"x=34:y={y0}+{hb}-12:w=44:h=12"):
             f.append(f"drawbox={box}:color=#e0262c:t=fill:enable='between(t,0.08,{banner_end})'")
     if a.hole:
