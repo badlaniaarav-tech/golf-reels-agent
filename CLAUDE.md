@@ -49,20 +49,21 @@ First run `pip install -q -r requirements.txt` once per session (OpenCV is neede
      Target 15 to 30 s total. Best shot goes first, second best last.
    - **1 v 1 / match play** (filename contains `1v1`, `vs`, `match`, or the notes say so). Reference look: the
      japesgolf "JP vs Chance Taylor" reels. Rules:
-     - Real time, no slow motion (`--slow 1`), hard cuts, no intro card, no crossfades (`montage.py --xfade 0`).
-       One hole per reel, 10 to 20 s: tee shot, approach, putt(s). Trim tight: `--pre 1.5 --post 2.5` for full
-       swings, `--pre 1 --post 3` for putts so the ball reaching the hole is seen.
-     - First shot carries `--banner "Aarav vs Luke"` (white box, black heavy uppercase, red bar) for 4 s,
-       then `--hole "431 Yards | Par 4"` takes its place when the yardage/par is known from the notes.
-     - Each shot gets a situation `--label` beside the player, on the side with open space:
+     - Real time, no slow motion (`--slow 1`), no fades (`--no-fade` on every clip), hard cuts
+       (`montage.py --xfade 0`), no intro card. One hole per reel, 15 to 25 s: both tee shots, approaches, putts.
+     - Trim tight: `--pre 1.2` before a full swing, `--post 3.2` after (ball flight and reaction).
+       Putts: `--pre 1.3`, `--post 3.5` so the setup, the roll and the reaction are all seen. Check the putt
+       stroke time by eye on the contact sheet; the audio detector often fires on the reaction, not the stroke.
+     - First clip carries `--banner "Aarav vs Harrison" --banner-secs 99` (slides in from the left behind the red
+       bracket and stays for the whole clip). Second clip carries `--hole "139 Yards | Par 3"` (types itself out).
+       Never put both on the same clip.
+     - Launch monitor numbers from the notes or a photo of the device go on each tee shot as small cards at the
+       top of the frame, Carry always in the middle: `--stats "Spin=9439=rpm,Carry=136=yds,Pull=1.0°=left"`.
+     - Each putt gets a situation `--label` beside the player, on the side with open space:
        "For Birdie", "For Par", "To Tie", "To Win", "For Eagle". Work it out from the running score in the notes.
-     - Launch monitor numbers from the notes or a photo of the device go on the tee shot as small cards at the
-       top of the frame, Carry always in the middle: `--stats "Spin=9439=rpm,Carry=136=yds,Pull=1.0°=left"`
-       (label=value=unit, up to 3). They appear 0.6 s after impact while the ball is in the air.
-     - Every full swing filmed from behind gets `--tracer` (turquoise ball-flight line). It needs the ball to be
-       visible against the sky for a moment; if the tracer reports 0 tracked points, re-render without it.
      - Spoken reactions become yellow italic `--dialogue "text@start-end"` captions when the notes give them
        (there is no automatic transcription). Keep them 2 to 5 words.
+     - `--tracer` (ball-flight line) only when the notes ask for it.
      - Keep the natural audio (talking, strike). Music is a quiet bed only if a track is provided.
    Output goes to `work/out/<YYYY-MM-DD>_<type>_<n>.mp4`.
 4. **Review** (use the `reviewer` agent). For each output, extract 6 frames (`ffmpeg -i out.mp4 -vf fps=1/2,scale=270:-2,tile=6x1 -frames:v 1 check.jpg`)
