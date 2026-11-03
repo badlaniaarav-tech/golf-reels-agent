@@ -9,7 +9,8 @@
 Timeline: normal speed -> slow motion around impact -> normal speed, cropped to 9:16
 centred on cx (0 = left edge, 1 = right edge), with optional text and music.
 """
-import argparse, json, os, subprocess, tempfile
+import argparse, json, os, subprocess, sys, tempfile
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import glob
 
@@ -91,20 +92,20 @@ def stat_cards_png(stats, path):
     """stats: list of (LABEL, value, unit). Draws a row of up to 3 rounded translucent cards (1080 wide)."""
     from PIL import Image, ImageDraw, ImageFont
     n = len(stats)
-    cw, ch, gap, margin = (300 if n == 3 else 340), 300, 32, 0
+    cw, ch, gap = (230 if n == 3 else 260), 150, 20
     total = n * cw + (n - 1) * gap
     img = Image.new("RGBA", (W, ch), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    f_label = ImageFont.truetype(FONT, 30)
-    f_value = ImageFont.truetype(FONT_HEAVY, 110)
-    f_unit = ImageFont.truetype(FONT_ITALIC, 34)
+    f_label = ImageFont.truetype(FONT, 22)
+    f_value = ImageFont.truetype(FONT_HEAVY, 60)
+    f_unit = ImageFont.truetype(FONT_ITALIC, 24)
     x = (W - total) // 2
     for label, value, unit in stats:
-        d.rounded_rectangle((x, 0, x + cw, ch), radius=38, fill=(16, 20, 28, 175))
+        d.rounded_rectangle((x, 0, x + cw, ch), radius=24, fill=(16, 20, 28, 175))
         cx = x + cw / 2
-        d.text((cx, 62), label.upper(), font=f_label, fill="white", anchor="mm")
-        d.text((cx, 152), str(value), font=f_value, fill="white", anchor="mm")
-        d.text((cx, 246), unit, font=f_unit, fill=(230, 230, 230, 255), anchor="mm")
+        d.text((cx, 30), label.upper(), font=f_label, fill="white", anchor="mm")
+        d.text((cx, 76), str(value), font=f_value, fill="white", anchor="mm")
+        d.text((cx, 124), unit, font=f_unit, fill=(230, 230, 230, 255), anchor="mm")
         x += cw + gap
     img.save(path)
     return path
@@ -184,6 +185,7 @@ def main():
     g.add_argument("--dialogue", action="append", help='yellow caption: "text@start-end" (output seconds), repeatable')
     g.add_argument("--stats", help='launch monitor cards, e.g. "Carry=136=yds,Spin=9439=rpm,Pull=1.0°=left" (max 3)')
     g.add_argument("--stats-at", default=None, help='"start-end" in output seconds; default: impact+0.6 to end')
+    g.add_argument("--tracer", action="store_true", help="draw a ball-flight tracer line after impact (real-time clips only)")
     a = ap.parse_args()
 
     m = probe(a.input)
@@ -215,7 +217,21 @@ def main():
     post += match_overlays(a, tmp, out_len)
     if not a.no_fade:
         post.append(f"fade=t=in:d=0.25,fade=t=out:st={max(0, out_len - 0.4):.2f}:d=0.4")
-    stats_input = []
+    extra_inputs = []   # list of (ffmpeg input args, filter-building fn(idx, src_label, dst_label))
+    if a.tracer and use_slow:
+        print("tracer skipped: needs --slow 1", file=sys.stderr)
+    elif a.tracer:
+        import tracer as _tracer
+        crop_f = crop_filter(m["width"], m["height"], a.cx)
+        cw, ch, cx0, cy0 = (int(v) for v in crop_f.split("=")[1].split(":"))
+        tdir = os.path.join(tmp, "trace")
+        info = _tracer.build(a.input, a.impact, S, tdir, out_fps=30, out_len=out_len, crop=(cx0, cy0, cw, ch),
+                             out_size=(W, H), cx=a.cx)
+        print(json.dumps({"tracer": info}), file=sys.stderr)
+        if info["tracked_points"]:
+            extra_inputs.append((["-framerate", "30", "-i", os.path.join(tdir, "trace_%04d.png")],
+                                 lambda i, src, dst: [f"[{i}:v]format=rgba[trc{i}]",
+                                                      f"{src}[trc{i}]overlay=x=0:y=0:eof_action=pass{dst}"]))
     if a.stats:
         stats = [tuple(x.strip() for x in item.split("=")) for item in a.stats.split(",")][:3]
         png = stat_cards_png(stats, os.path.join(tmp, "stats.png"))
@@ -224,12 +240,11 @@ def main():
         else:
             s0, s1 = (A - S) + (a.slow_before if use_slow else 0) + 0.6, out_len
         s0, s1 = max(0.0, s0), min(out_len, s1)
-        stats_input = ["-loop", "1", "-i", png]
-        f.append("[vc]" + ",".join(post) + "[vtxt]")
-        f.append(f"[{{STATS}}:v]format=rgba,fade=t=in:st={s0:.2f}:d=0.3:alpha=1,setpts=PTS-STARTPTS[cards]")
-        f.append(f"[vtxt][cards]overlay=x=0:y=H*0.24:enable='between(t,{s0:.2f},{s1:.2f})':eof_action=pass[vout]")
-    else:
-        f.append("[vc]" + ",".join(post) + "[vout]")
+        extra_inputs.append((["-loop", "1", "-i", png],
+                             lambda i, src, dst, s0=s0, s1=s1: [
+                                 f"[{i}:v]format=rgba,fade=t=in:st={s0:.2f}:d=0.3:alpha=1,setpts=PTS-STARTPTS[cards{i}]",
+                                 f"{src}[cards{i}]overlay=x=0:y=H*0.085:enable='between(t,{s0:.2f},{s1:.2f})':eof_action=pass{dst}"]))
+    f.append("[vc]" + ",".join(post) + ("[v0]" if extra_inputs else "[vout]"))
 
     audio_label = None
     if m["has_audio"] and not a.mute:
@@ -243,10 +258,13 @@ def main():
         f.append("".join(al) + f"concat=n={len(segs)}:v=0:a=1[ac]")
         audio_label = "[ac]"
     inputs = ["-i", a.input]
-    if stats_input:
-        inputs += stats_input
-        f = [x.replace("{STATS}", "1") for x in f]
-    music_idx = 2 if stats_input else 1
+    src = "[v0]"
+    for n, (args, mk) in enumerate(extra_inputs):
+        inputs += args
+        dst = "[vout]" if n == len(extra_inputs) - 1 else f"[v{n + 1}]"
+        f += mk(n + 1, src, dst)
+        src = dst
+    music_idx = 1 + len(extra_inputs)
     if a.music:
         inputs += ["-stream_loop", "-1", "-i", a.music]
         f.append(f"[{music_idx}:a]atrim=0:{out_len:.3f},asetpts=PTS-STARTPTS,volume={a.music_vol}[mus]")

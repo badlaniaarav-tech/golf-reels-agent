@@ -21,6 +21,8 @@ through it. If the env vars are missing, stop and report that the Drive secrets 
 
 ## Tools (all in `pipeline/`, run with python3)
 
+First run `pip install -q -r requirements.txt` once per session (OpenCV is needed for the ball tracer).
+
 - `analyze.py VIDEO --sheet work/sheets --json work/X.json` - finds each shot: impact time, suggested
   start/end, crop centre `cx` (0 left .. 1 right), and writes a contact sheet jpg per shot
   (16 frames, impact-1.0s to impact+0.6s). Look at the sheet with the Read tool to confirm.
@@ -54,13 +56,14 @@ through it. If the env vars are missing, stop and report that the Drive secrets 
        then `--hole "431 Yards | Par 4"` takes its place when the yardage/par is known from the notes.
      - Each shot gets a situation `--label` beside the player, on the side with open space:
        "For Birdie", "For Par", "To Tie", "To Win", "For Eagle". Work it out from the running score in the notes.
-     - Launch monitor numbers from the notes or a photo of the device go on the tee shot as cards:
-       `--stats "Carry=136=yds,Spin=9439=rpm,Pull=1.0°=left"` (label=value=unit, up to 3). They appear 0.6 s after
-       impact while the ball is in the air.
+     - Launch monitor numbers from the notes or a photo of the device go on the tee shot as small cards at the
+       top of the frame, Carry always in the middle: `--stats "Spin=9439=rpm,Carry=136=yds,Pull=1.0°=left"`
+       (label=value=unit, up to 3). They appear 0.6 s after impact while the ball is in the air.
+     - Every full swing filmed from behind gets `--tracer` (turquoise ball-flight line). It needs the ball to be
+       visible against the sky for a moment; if the tracer reports 0 tracked points, re-render without it.
      - Spoken reactions become yellow italic `--dialogue "text@start-end"` captions when the notes give them
        (there is no automatic transcription). Keep them 2 to 5 words.
      - Keep the natural audio (talking, strike). Music is a quiet bed only if a track is provided.
-     - Shot tracer lines are not produced by this pipeline.
    Output goes to `work/out/<YYYY-MM-DD>_<type>_<n>.mp4`.
 4. **Review** (use the `reviewer` agent). For each output, extract 6 frames (`ffmpeg -i out.mp4 -vf fps=1/2,scale=270:-2,tile=6x1 -frames:v 1 check.jpg`)
    and check: golfer fully in frame through the swing, impact inside the slow section, text readable and not
