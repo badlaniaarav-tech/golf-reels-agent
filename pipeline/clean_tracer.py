@@ -21,6 +21,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("inp"); ap.add_argument("out")
     ap.add_argument("--crop-bottom", type=float, default=0.0, help="fraction of the height to cut off the bottom")
+    ap.add_argument("--keep-line", action="store_true", help="only crop the watermark; leave the red tracer line")
     a = ap.parse_args()
     W, H, fps = probe(a.inp)
     Hc = int(H * (1 - a.crop_bottom)) // 2 * 2
@@ -39,7 +40,7 @@ def main():
         f = np.frombuffer(buf, np.uint8).reshape(Hc, W, 3).copy()
         b, g, r = f[:, :, 0].astype(int), f[:, :, 1].astype(int), f[:, :, 2].astype(int)
         mask = ((r > 170) & (g < 100) & (b < 100)).astype(np.uint8)   # pure red only, not autumn leaves
-        if mask.any():
+        if mask.any() and not a.keep_line:
             mask = cv2.dilate(mask, k)
             f = cv2.inpaint(f, mask, 7, cv2.INPAINT_TELEA)
             fixed += 1
