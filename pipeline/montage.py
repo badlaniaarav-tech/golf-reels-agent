@@ -52,7 +52,7 @@ def main():
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", c, "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo",
                         "-filter_complex", "[0:a]aformat=sample_rates=48000:channel_layouts=stereo,apad[a]"
                         if has_audio(c) else "[1:a]anull[a]",
-                        "-map", "0:v", "-map", "[a]", "-vf", "scale=1080:1920,fps=30,format=yuv420p",
+                        "-map", "0:v", "-map", "[a]", "-vf", "scale=1080:1920,setsar=1,fps=30,format=yuv420p",
                         "-c:v", "libx264", "-crf", "20", "-c:a", "aac", "-ar", "48000", "-shortest", n], check=True)
         norm.append(n)
     durs = [duration(n) for n in norm]

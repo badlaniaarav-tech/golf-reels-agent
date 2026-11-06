@@ -222,7 +222,7 @@ def main():
         f.append(f"{chain}[{name}]")
     f.append("".join(f"[{s[0]}]" for s in segs) + f"concat=n={len(segs)}:v=1:a=0[vc]")
 
-    post = [crop_filter(m["width"], m["height"], a.cx), f"scale={W}:{H}:flags=lanczos", "fps=30", "format=yuv420p"]
+    post = [crop_filter(m["width"], m["height"], a.cx), f"scale={W}:{H}:flags=lanczos", "setsar=1", "fps=30", "format=yuv420p"]
     if a.title:
         post.append(drawtext(a.title, "h*0.10", 72, tmp, "title.txt"))
     if a.caption:
