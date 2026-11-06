@@ -30,6 +30,9 @@ First run `pip install -q -r requirements.txt` once per session (OpenCV is neede
   - renders a 1080x1920 clip with slow motion around impact. Add `--smooth` for 30fps sources.
 - `montage.py --out reel.mp4 clip1.mp4 clip2.mp4 ... [--intro "text"] [--music f] [--keep-audio]` - joins clips with crossfades.
 - `drive.py list|download|upload|share|move` - Drive files (see docstring).
+- `clean_tracer.py IN OUT --crop-bottom 0.08` - for clips exported from the SmoothSwing app (watermark at the
+  bottom, red tracer line baked in): crops the watermark off and inpaints the red line away. Run it on such
+  clips before analyze/render.
 
 ## The run, step by step
 
