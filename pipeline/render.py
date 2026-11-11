@@ -153,8 +153,16 @@ def match_overlays(a, tmp, out_len):
         from PIL import ImageFont
         bb = ImageFont.truetype(FONT_BANNER, size).getbbox(a.banner.upper())
         box_h = (bb[3] - bb[1]) + 2 * pad
+        sub_h = 0
+        if a.banner_sub:                                   # smaller second line under the banner, e.g. "BEST BALL"
+            sub_size, sub_pad, gap = 36, 14, 10
+            sb = ImageFont.truetype(FONT_BANNER, sub_size).getbbox(a.banner_sub.upper())
+            sub_h = (sb[3] - sb[1]) + 2 * sub_pad + gap
+            f.append(drawtext(a.banner_sub.upper(), f"h*0.165+{box_h + gap + sub_pad}", sub_size, tmp, "banner_sub.txt",
+                              x_expr=x_expr, font=FONT_BANNER, color="black",
+                              extra=f"box=1:boxcolor=white:boxborderw={sub_pad}", enable=f"lt(t,{banner_end})"))
         over, bar, arm, thick = 20, 20, 72, 16
-        y0, hb = f"ih*0.165-{over}", box_h + 2 * over
+        y0, hb = f"ih*0.165-{over}", box_h + sub_h + 2 * over
         bx = box_left - 16
         for box in (f"x={bx}:y={y0}:w={bar}:h={hb}", f"x={bx}:y={y0}:w={arm}:h={thick}",
                     f"x={bx}:y={y0}+{hb}-{thick}:w={arm}:h={thick}"):
@@ -210,6 +218,7 @@ def main():
     g = ap.add_argument_group("match style overlays (1v1 reels)")
     g.add_argument("--banner", help='matchup banner, e.g. "Aarav vs Luke" (shown for --banner-secs)')
     g.add_argument("--banner-secs", type=float, default=4.0)
+    g.add_argument("--banner-sub", help='smaller line under the banner, e.g. "Best ball"')
     g.add_argument("--hole", help='hole info, e.g. "431 Yards | Par 4"')
     g.add_argument("--label", help='situation label, e.g. "For Birdie", "To Tie"')
     g.add_argument("--label-side", choices=["left", "right"], default="right")

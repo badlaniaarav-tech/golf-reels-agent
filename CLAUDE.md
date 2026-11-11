@@ -69,7 +69,7 @@ First run `pip install -q -r requirements.txt` once per session (OpenCV is neede
      - Spoken reactions become yellow italic `--dialogue "text@start-end"` captions when the notes give them
        (there is no automatic transcription). Keep them 2 to 5 words.
      - `--tracer` (ball-flight line) only when the notes ask for it.
-     - Team formats (2v2, best ball, scramble): banner is the team matchup (e.g. `--banner "Juniors vs Pros"`,
+     - Team formats (2v2, best ball, scramble): banner is the team matchup (e.g. `--banner "Juniors vs Pros" --banner-sub "Best ball"`,
        kept for the whole first clip since tee clips are short) and every shot gets a name tag
        `--name "Aarav" --team "Juniors"` (`--name-side right` when the player fills the bottom-left).
        Confirm who is in each clip with the user before cutting; faces are easy to mix up.
