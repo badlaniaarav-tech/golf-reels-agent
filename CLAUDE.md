@@ -73,6 +73,9 @@ First run `pip install -q -r requirements.txt` once per session (OpenCV is neede
        kept for the whole first clip since tee clips are short) and every shot gets a name tag
        `--name "Aarav" --team "Juniors"` (`--name-side right` when the player fills the bottom-left).
        Confirm who is in each clip with the user before cutting; faces are easy to mix up.
+       Finish team reels with a scoreboard: `endcard.py --from <last clip> --title "158 yds | Par 3 | Best ball"
+       --team "Juniors=Aarav:3,Harrison:3" --team "Pros=Evan:3,Chase:4" --result "All square"` (3 s, appended last).
+       Chips get a name tag but no situation label.
      - Keep the natural audio (talking, strike). Music is a quiet bed only if a track is provided.
    Output goes to `work/out/<YYYY-MM-DD>_<type>_<n>.mp4`.
 4. **Review** (use the `reviewer` agent). For each output, extract 6 frames (`ffmpeg -i out.mp4 -vf fps=1/2,scale=270:-2,tile=6x1 -frames:v 1 check.jpg`)
