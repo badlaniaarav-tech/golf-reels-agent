@@ -69,6 +69,10 @@ First run `pip install -q -r requirements.txt` once per session (OpenCV is neede
      - Spoken reactions become yellow italic `--dialogue "text@start-end"` captions when the notes give them
        (there is no automatic transcription). Keep them 2 to 5 words.
      - `--tracer` (ball-flight line) only when the notes ask for it.
+     - Team formats (2v2, best ball, scramble): banner is the team matchup (e.g. `--banner "Juniors vs Pros"`,
+       kept for the whole first clip since tee clips are short) and every shot gets a name tag
+       `--name "Aarav" --team "Juniors"` (`--name-side right` when the player fills the bottom-left).
+       Confirm who is in each clip with the user before cutting; faces are easy to mix up.
      - Keep the natural audio (talking, strike). Music is a quiet bed only if a track is provided.
    Output goes to `work/out/<YYYY-MM-DD>_<type>_<n>.mp4`.
 4. **Review** (use the `reviewer` agent). For each output, extract 6 frames (`ffmpeg -i out.mp4 -vf fps=1/2,scale=270:-2,tile=6x1 -frames:v 1 check.jpg`)

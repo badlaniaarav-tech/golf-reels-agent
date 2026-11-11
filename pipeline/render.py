@@ -112,6 +112,24 @@ def stat_cards_png(stats, path):
     return path
 
 
+def name_tag_png(name, team, path):
+    """Small rounded tag: player name with the team underneath (for 2v2 / team reels)."""
+    from PIL import Image, ImageDraw, ImageFont
+    f_name = ImageFont.truetype(FONT_HEAVY, 46)
+    f_team = ImageFont.truetype(FONT, 26)
+    pad = 22
+    w_name = f_name.getlength(name.upper()); w_team = f_team.getlength(team.upper()) if team else 0
+    w = int(max(w_name, w_team) + 2 * pad); h = 60 + (34 if team else 0) + pad
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle((0, 0, w - 1, h - 1), radius=18, fill=(16, 20, 28, 185))
+    d.text((pad, pad - 6), name.upper(), font=f_name, fill="white")
+    if team:
+        d.text((pad, pad + 48), team.upper(), font=f_team, fill=(255, 210, 60, 255))
+    img.save(path)
+    return path, w, h
+
+
 def match_overlays(a, tmp, out_len):
     """Overlays in the 1v1 match style, animated like the reference reels:
     banner slides in from the left behind a red bracket; hole info types itself out with a soft fade;
@@ -199,6 +217,9 @@ def main():
     g.add_argument("--stats", help='launch monitor cards, e.g. "Carry=136=yds,Spin=9439=rpm,Pull=1.0°=left" (max 3)')
     g.add_argument("--stats-at", default=None, help='"start-end" in output seconds; default: impact+0.6 to end')
     g.add_argument("--tracer", action="store_true", help="draw a ball-flight tracer line after impact (real-time clips only)")
+    g.add_argument("--name", help='player name tag shown for the whole clip, e.g. "Aarav"')
+    g.add_argument("--team", help='team line under the name tag, e.g. "Juniors"')
+    g.add_argument("--name-side", choices=["left", "right"], default="left")
     a = ap.parse_args()
 
     m = probe(a.input)
@@ -245,6 +266,12 @@ def main():
             extra_inputs.append((["-framerate", "30", "-i", os.path.join(tdir, "trace_%04d.png")],
                                  lambda i, src, dst: [f"[{i}:v]format=rgba[trc{i}]",
                                                       f"{src}[trc{i}]overlay=x=0:y=0:eof_action=pass{dst}"]))
+    if a.name:
+        png, tw_, th_ = name_tag_png(a.name, a.team or "", os.path.join(tmp, "name.png"))
+        nx = 48 if a.name_side == "left" else W - 48 - tw_
+        extra_inputs.append((["-loop", "1", "-i", png],
+                             lambda i, src, dst, nx=nx: [f"[{i}:v]format=rgba[tag{i}]",
+                                                         f"{src}[tag{i}]overlay=x={nx}:y=H*0.70:eof_action=pass{dst}"]))
     if a.stats:
         stats = [tuple(x.strip() for x in item.split("=")) for item in a.stats.split(",")][:3]
         png = stat_cards_png(stats, os.path.join(tmp, "stats.png"))
