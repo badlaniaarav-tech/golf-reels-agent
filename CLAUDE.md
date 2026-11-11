@@ -69,8 +69,11 @@ First run `pip install -q -r requirements.txt` once per session (OpenCV is neede
      - Spoken reactions become yellow italic `--dialogue "text@start-end"` captions when the notes give them
        (there is no automatic transcription). Keep them 2 to 5 words.
      - `--tracer` (ball-flight line) only when the notes ask for it.
-     - Team formats (2v2, best ball, scramble): banner is the team matchup (e.g. `--banner "Juniors vs Pros" --banner-sub "Best ball"`,
-       kept for the whole first clip since tee clips are short) and every shot gets a name tag
+     - If the first clip has under 1.5 s before the strike, hold its first frame so the banner can be read:
+       `ffmpeg -i in.mov -map 0:v:0 -map 0:a:0 -vf tpad=start_duration=0.7:start_mode=clone -af "adelay=700|700" ... hold.mov`
+       then treat impact as 0.7 s later. The banner still slides out before the strike (`--banner-secs <pre minus 0.15>`).
+     - Team formats (2v2, best ball, scramble): banner is the team matchup (e.g. `--banner "Juniors vs Pros" --banner-sub "Best ball"`)
+       and every shot gets a name tag
        `--name "Aarav" --team "Juniors"` (`--name-side right` when the player fills the bottom-left).
        Confirm who is in each clip with the user before cutting; faces are easy to mix up.
        Finish team reels with a scoreboard: `endcard.py --from <last clip> --title "158 yds | Par 3 | Best ball"
